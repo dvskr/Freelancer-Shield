@@ -1,14 +1,353 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+}
+
+// ============================================
+// USER (Freelancer)
+// ============================================
+model User {
+  id              String   @id @default(cuid())
+  supabaseId      String   @unique @map("supabase_id")
+  email           String   @unique
+  firstName       String?  @map("first_name")
+  lastName        String?  @map("last_name")
+  businessName    String?  @map("business_name")
+  phone           String?
+  avatarUrl       String?  @map("avatar_url")
+  
+  // Business Address
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?  @map("zip_code")
+  country         String   @default("US")
+  
+  // Settings
+  timezone        String   @default("America/New_York")
+  currency        String   @default("USD")
+  defaultPaymentTerms Int  @default(14) @map("default_payment_terms")
+  
+  // Subscription
+  subscriptionStatus  String   @default("trialing") @map("subscription_status")
+  trialEndsAt         DateTime? @map("trial_ends_at")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  clients         Client[]
+  projects        Project[]
+  invoices        Invoice[]
+  contracts       Contract[]
+  contractTemplates ContractTemplate[]
+  
+  @@index([supabaseId])
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================
+// CLIENT
+// ============================================
+model Client {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  name            String
+  email           String
+  phone           String?
+  company         String?
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?  @map("zip_code")
+  country         String   @default("US")
+  portalToken     String?  @unique @map("portal_token")
+  portalTokenExp  DateTime? @map("portal_token_exp")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects        Project[]
+  invoices        Invoice[]
+  contracts       Contract[]
+  
+  @@unique([userId, email])
+  @@index([userId])
+  @@map("clients")
+}
+
+// ============================================
+// PROJECT
+// ============================================
+model Project {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  clientId        String   @map("client_id")
+  code            String   @unique
+  name            String
+  description     String?
+  status          String   @default("draft")
+  projectType     String   @default("fixed") @map("project_type")
+  totalAmount     Int      @default(0) @map("total_amount")
+  paidAmount      Int      @default(0) @map("paid_amount")
+  currency        String   @default("USD")
+  startDate       DateTime? @map("start_date")
+  endDate         DateTime? @map("end_date")
+  revisionsCap    Int      @default(3) @map("revisions_cap")
+  revisionsUsed   Int      @default(0) @map("revisions_used")
+  extraRevisionFee Int     @default(5000) @map("extra_revision_fee")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  milestones      Milestone[]
+  invoices        Invoice[]
+  contracts       Contract[]
+  revisions       Revision[]
+  
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@map("projects")
+}
+
+// ============================================
+// MILESTONE
+// ============================================
+model Milestone {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  name            String
+  description     String?
+  orderIndex      Int      @default(0) @map("order_index")
+  status          String   @default("pending")
+  amount          Int      @default(0)
+  dueDate         DateTime? @map("due_date")
+  approvedAt      DateTime? @map("approved_at")
+  approvedBy      String?   @map("approved_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliverables    Deliverable[]
+  invoiceItems    InvoiceItem[]
+  
+  @@index([projectId])
+  @@map("milestones")
+}
+
+// ============================================
+// DELIVERABLE
+// ============================================
+model Deliverable {
+  id              String   @id @default(cuid())
+  milestoneId     String   @map("milestone_id")
+  name            String
+  description     String?
+  fileUrl         String?  @map("file_url")
+  fileType        String?  @map("file_type")
+  fileSize        Int?     @map("file_size")
+  status          String   @default("pending")
+  feedback        String?
+  feedbackAt      DateTime? @map("feedback_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  milestone       Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  
+  @@index([milestoneId])
+  @@map("deliverables")
+}
+
+// ============================================
+// REVISION
+// ============================================
+model Revision {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  revisionNumber  Int      @map("revision_number")
+  description     String
+  requestedBy     String   @map("requested_by")
+  status          String   @default("pending")
+  isExtra         Boolean  @default(false) @map("is_extra")
+  amount          Int      @default(0)
+  invoiceId       String?  @map("invoice_id")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  
+  @@index([projectId])
+  @@map("revisions")
+}
+
+// ============================================
+// CONTRACT
+// ============================================
+model Contract {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  clientId        String   @map("client_id")
+  projectId       String?  @map("project_id")
+  code            String   @unique
+  name            String
+  content         String
+  status          String   @default("draft")
+  freelancerSignedAt  DateTime? @map("freelancer_signed_at")
+  freelancerSignature String?   @map("freelancer_signature")
+  clientSignedAt      DateTime? @map("client_signed_at")
+  clientSignature     String?   @map("client_signature")
+  clientIp            String?   @map("client_ip")
+  sentAt          DateTime? @map("sent_at")
+  viewedAt        DateTime? @map("viewed_at")
+  expiresAt       DateTime? @map("expires_at")
+  pdfUrl          String?  @map("pdf_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project         Project? @relation(fields: [projectId], references: [id])
+  
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@map("contracts")
+}
+
+// ============================================
+// CONTRACT TEMPLATE
+// ============================================
+model ContractTemplate {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  name            String
+  description     String?
+  content         String
+  isDefault       Boolean  @default(false) @map("is_default")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("contract_templates")
+}
+
+// ============================================
+// INVOICE
+// ============================================
+model Invoice {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  clientId        String   @map("client_id")
+  projectId       String?  @map("project_id")
+  invoiceNumber   String   @unique @map("invoice_number")
+  status          String   @default("draft")
+  subtotal        Int      @default(0)
+  taxRate         Float    @default(0) @map("tax_rate")
+  taxAmount       Int      @default(0) @map("tax_amount")
+  discountAmount  Int      @default(0) @map("discount_amount")
+  total           Int      @default(0)
+  amountPaid      Int      @default(0) @map("amount_paid")
+  currency        String   @default("USD")
+  issueDate       DateTime @default(now()) @map("issue_date")
+  dueDate         DateTime @map("due_date")
+  paidAt          DateTime? @map("paid_at")
+  stripePaymentIntent String?  @map("stripe_payment_intent")
+  paymentLink         String?  @map("payment_link")
+  notes           String?
+  terms           String?
+  pdfUrl          String?  @map("pdf_url")
+  sentAt          DateTime? @map("sent_at")
+  viewedAt        DateTime? @map("viewed_at")
+  reminderCount   Int       @default(0) @map("reminder_count")
+  lastReminderAt  DateTime? @map("last_reminder_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project         Project?      @relation(fields: [projectId], references: [id])
+  items           InvoiceItem[]
+  payments        Payment[]
+  revisions       Revision[]
+  reminders       ReminderSchedule[]
+  
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+// ============================================
+// INVOICE ITEM
+// ============================================
+model InvoiceItem {
+  id              String   @id @default(cuid())
+  invoiceId       String   @map("invoice_id")
+  milestoneId     String?  @map("milestone_id")
+  description     String
+  quantity        Float    @default(1)
+  unitPrice       Int      @map("unit_price")
+  amount          Int
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  invoice         Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id])
+  
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// ============================================
+// PAYMENT
+// ============================================
+model Payment {
+  id              String   @id @default(cuid())
+  invoiceId       String   @map("invoice_id")
+  amount          Int
+  currency        String   @default("USD")
+  stripePaymentId String?  @map("stripe_payment_id")
+  paymentMethod   String?  @map("payment_method")
+  status          String   @default("succeeded")
+  paidAt          DateTime @default(now()) @map("paid_at")
+  
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+// ============================================
+// REMINDER SCHEDULE
+// ============================================
+model ReminderSchedule {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  invoiceId       String   @map("invoice_id")
+  reminderType    String   @map("reminder_type")
+  daysOffset      Int      @map("days_offset")
+  status          String   @default("scheduled")
+  scheduledFor    DateTime @map("scheduled_for")
+  sentAt          DateTime? @map("sent_at")
+  isEscalation    Boolean  @default(false) @map("is_escalation")
+  escalationLevel Int      @default(0) @map("escalation_level")
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  @@index([invoiceId])
+  @@index([scheduledFor])
+  @@index([status])
+  @@map("reminder_schedules")
 }

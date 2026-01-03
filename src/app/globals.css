@@ -1,26 +1,146 @@
 @import "tailwindcss";
 
 :root {
+  /* -- Clean White & Blue Palette -- */
+  /* Backgrounds */
   --background: #ffffff;
-  --foreground: #171717;
+  --background-secondary: #f8fafc;
+  /* Slate-50 */
+  --background-tertiary: #f1f5f9;
+  /* Slate-100 */
+
+  /* Foreground / Text */
+  --foreground: #0f172a;
+  /* Slate-900 */
+  --foreground-muted: #64748b;
+  /* Slate-500 */
+  --foreground-light: #94a3b8;
+  /* Slate-400 */
+
+  /* Brand Colors */
+  --primary: #2563eb;
+  /* Blue-600 */
+  --primary-foreground: #ffffff;
+  --primary-hover: #1d4ed8;
+  /* Blue-700 */
+  --primary-light: #eff6ff;
+  /* Blue-50 */
+
+  /* Semantic Colors */
+  --success: #10b981;
+  /* Emerald-500 */
+  --warning: #f59e0b;
+  /* Amber-500 */
+  --destructive: #ef4444;
+  /* Red-500 */
+  --destructive-foreground: #ffffff;
+
+  /* UI Elements */
+  --border: #e2e8f0;
+  /* Slate-200 */
+  --input: #ffffff;
+  --ring: #3b82f6;
+  /* Blue-500 */
+
+  --radius: 0.75rem;
+  /* 12px for modern rounded feel */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Base Styles */
 body {
-  background: var(--background);
+  background-color: var(--background-secondary);
+  /* Very light gray page bg */
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+}
+
+/* Enhanced Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Gradients & Utilities */
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+}
+
+/* Global Input Reset for Visibility */
+input,
+textarea,
+select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color-scheme: light;
+  /* Forces browser to render standard light inputs */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Force Autofill Styles */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: black !important;
+  caret-color: black !important;
+  background-color: white !important;
 }

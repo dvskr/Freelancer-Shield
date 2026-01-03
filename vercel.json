@@ -1,0 +1,32 @@
+{
+    "framework": "nextjs",
+    "regions": [
+        "iad1"
+    ],
+    "functions": {
+        "src/app/api/**/*.ts": {
+            "maxDuration": 30
+        }
+    },
+    "crons": [
+        {
+            "path": "/api/cron/reminders",
+            "schedule": "0 9 * * *"
+        },
+        {
+            "path": "/api/cron/overdue-check",
+            "schedule": "0 0 * * *"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/api/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-store"
+                }
+            ]
+        }
+    ]
+}

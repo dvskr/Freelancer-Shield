@@ -30,12 +30,29 @@ export function formatDateTime(date: Date | string): string {
   }).format(new Date(date))
 }
 
-export function generateInvoiceNumber(): string {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase()
-  return `INV-${year}${month}-${random}`
+export function generateInvoiceNumber(lastNumber?: string | null): string {
+  const prefix = 'INV-'
+  const currentYear = new Date().getFullYear()
+
+  if (!lastNumber) {
+    return `${prefix}${currentYear}-0001`
+  }
+
+  const match = lastNumber.match(/(\d{4})-(\d+)$/)
+  if (!match) {
+    return `${prefix}${currentYear}-0001`
+  }
+
+  const [, year, num] = match
+  const yearNum = parseInt(year)
+  const seqNum = parseInt(num)
+
+  if (yearNum < currentYear) {
+    return `${prefix}${currentYear}-0001`
+  }
+
+  const nextNum = (seqNum + 1).toString().padStart(4, '0')
+  return `${prefix}${currentYear}-${nextNum}`
 }
 
 export function generateProjectCode(): string {
@@ -82,4 +99,14 @@ export function getInitials(name: string): string {
     .join("")
     .toUpperCase()
     .slice(0, 2)
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes'
+
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }

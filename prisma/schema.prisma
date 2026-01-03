@@ -19,8 +19,16 @@ model User {
   phone           String?
   avatarUrl       String?  @map("avatar_url")
   
+  // Business Details
+  businessType    String?  @map("business_type")
+  businessWebsite String?  @map("business_website")
+  businessLogo    String?  @map("business_logo")
+  taxId           String?  @map("tax_id")
+  taxIdType       String?  @map("tax_id_type")
+  
   // Business Address
   address         String?
+  addressLine2    String?  @map("address_line_2")
   city            String?
   state           String?
   zipCode         String?  @map("zip_code")
@@ -31,9 +39,24 @@ model User {
   currency        String   @default("USD")
   defaultPaymentTerms Int  @default(14) @map("default_payment_terms")
   
+  // Settings JSON
+  invoiceSettings      Json?    @default("{}") @map("invoice_settings")
+  notificationSettings Json?    @default("{}") @map("notification_settings")
+  
   // Subscription
   subscriptionStatus  String   @default("trialing") @map("subscription_status")
   trialEndsAt         DateTime? @map("trial_ends_at")
+  
+  // Stripe Connect
+  stripeAccountId           String?  @map("stripe_account_id")
+  stripeAccountStatus       String?  @default("pending") @map("stripe_account_status")
+  stripeOnboardingComplete  Boolean  @default(false) @map("stripe_onboarding_complete")
+  stripeDetailsSubmitted    Boolean  @default(false) @map("stripe_details_submitted")
+  stripeChargesEnabled      Boolean  @default(false) @map("stripe_charges_enabled")
+  stripePayoutsEnabled      Boolean  @default(false) @map("stripe_payouts_enabled")
+  
+  // Reminder Settings
+  reminderSettings Json?    @default("{}") @map("reminder_settings")
   
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -44,6 +67,8 @@ model User {
   invoices        Invoice[]
   contracts       Contract[]
   contractTemplates ContractTemplate[]
+  portalMessages  PortalMessage[]
+  timeEntries     TimeEntry[]
   
   @@index([supabaseId])
   @@index([email])
@@ -65,9 +90,15 @@ model Client {
   state           String?
   zipCode         String?  @map("zip_code")
   country         String   @default("US")
-  portalToken     String?  @unique @map("portal_token")
-  portalTokenExp  DateTime? @map("portal_token_exp")
+  
+  // Portal Access
+  portalEnabled       Boolean   @default(false) @map("portal_enabled")
+  portalToken         String?   @unique @map("portal_token")
+  portalTokenExp      DateTime? @map("portal_token_exp")
+  lastPortalAccess    DateTime? @map("last_portal_access")
+  
   notes           String?
+  defaultHourlyRate Int?    @map("default_hourly_rate") // Rate in cents
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
   
@@ -75,6 +106,9 @@ model Client {
   projects        Project[]
   invoices        Invoice[]
   contracts       Contract[]
+  portalSessions  PortalSession[]
+  portalMessages  PortalMessage[]
+  timeEntries     TimeEntry[]
   
   @@unique([userId, email])
   @@index([userId])
@@ -101,6 +135,8 @@ model Project {
   revisionsCap    Int      @default(3) @map("revisions_cap")
   revisionsUsed   Int      @default(0) @map("revisions_used")
   extraRevisionFee Int     @default(5000) @map("extra_revision_fee")
+  hourlyRate      Int?     @map("hourly_rate")  // Rate in cents
+  estimatedHours  Int?     @map("estimated_hours")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
   
@@ -110,6 +146,7 @@ model Project {
   invoices        Invoice[]
   contracts       Contract[]
   revisions       Revision[]
+  timeEntries     TimeEntry[]
   
   @@index([userId])
   @@index([clientId])
@@ -137,6 +174,7 @@ model Milestone {
   project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   deliverables    Deliverable[]
   invoiceItems    InvoiceItem[]
+  timeEntries     TimeEntry[]
   
   @@index([projectId])
   @@map("milestones")
@@ -264,6 +302,9 @@ model Invoice {
   paidAt          DateTime? @map("paid_at")
   stripePaymentIntent String?  @map("stripe_payment_intent")
   paymentLink         String?  @map("payment_link")
+  stripePaymentLinkId   String?  @map("stripe_payment_link_id")
+  stripePaymentLinkUrl  String?  @map("stripe_payment_link_url")
+  stripeCheckoutSessionId String?  @map("stripe_checkout_session_id")
   notes           String?
   terms           String?
   pdfUrl          String?  @map("pdf_url")
@@ -281,6 +322,7 @@ model Invoice {
   payments        Payment[]
   revisions       Revision[]
   reminders       ReminderSchedule[]
+  timeEntries     TimeEntry[]
   
   @@index([userId])
   @@index([clientId])
@@ -318,13 +360,20 @@ model Payment {
   amount          Int
   currency        String   @default("USD")
   stripePaymentId String?  @map("stripe_payment_id")
+  stripePaymentIntentId String?  @map("stripe_payment_intent_id")
+  stripeSessionId       String?  @map("stripe_session_id")
+  stripeChargeId        String?  @map("stripe_charge_id")
   paymentMethod   String?  @map("payment_method")
+  method          String?
   status          String   @default("succeeded")
+  notes           String?
   paidAt          DateTime @default(now()) @map("paid_at")
+  createdAt       DateTime @default(now()) @map("created_at")
   
   invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   
   @@index([invoiceId])
+  @@index([stripePaymentIntentId])
   @@map("payments")
 }
 
@@ -342,6 +391,8 @@ model ReminderSchedule {
   sentAt          DateTime? @map("sent_at")
   isEscalation    Boolean  @default(false) @map("is_escalation")
   escalationLevel Int      @default(0) @map("escalation_level")
+  error           String?
+  emailId         String?   @map("email_id")
   createdAt       DateTime @default(now()) @map("created_at")
   
   invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -350,4 +401,94 @@ model ReminderSchedule {
   @@index([scheduledFor])
   @@index([status])
   @@map("reminder_schedules")
+}
+
+// ============================================
+// PORTAL SESSION
+// ============================================
+model PortalSession {
+  id          String   @id @default(uuid())
+  clientId    String   @map("client_id")
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  token       String   @unique
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  lastUsedAt  DateTime @default(now()) @map("last_used_at")
+  userAgent   String?  @map("user_agent")
+  ipAddress   String?  @map("ip_address")
+  
+  @@index([clientId])
+  @@index([token])
+  @@map("portal_sessions")
+}
+
+// ============================================
+// PORTAL MESSAGE
+// ============================================
+model PortalMessage {
+  id          String   @id @default(uuid())
+  clientId    String   @map("client_id")
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     String
+  senderType  String   @map("sender_type") // 'client' or 'freelancer'
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@index([clientId])
+  @@index([userId])
+  @@map("portal_messages")
+}
+
+// ============================================
+// TIME ENTRY
+// ============================================
+model TimeEntry {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Optional associations
+  clientId        String?   @map("client_id")
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  projectId       String?   @map("project_id")
+  project         Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  milestoneId     String?   @map("milestone_id")
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  
+  // Time data
+  description     String
+  date            DateTime  @db.Date
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  duration        Int       // Duration in minutes
+  
+  // Billing
+  billable        Boolean   @default(true)
+  billed          Boolean   @default(false)
+  hourlyRate      Int?      @map("hourly_rate") // Rate in cents
+  
+  // Invoice reference
+  invoiceId       String?   @map("invoice_id")
+  invoice         Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  invoiceItemId   String?   @map("invoice_item_id")
+  
+  // Timer state
+  isRunning       Boolean   @default(false) @map("is_running")
+  timerStartedAt  DateTime? @map("timer_started_at")
+  
+  // Metadata
+  tags            String[]  @default([])
+  notes           String?
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  @@index([userId])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([date])
+  @@index([isRunning])
+  @@map("time_entries")
 }

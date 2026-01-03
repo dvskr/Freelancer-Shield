@@ -102,7 +102,7 @@ export default function GeneratePortalLink({ clientId, existingToken }: Generate
                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <a
-                href={portalUrl}
+                href={portalUrl || undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"

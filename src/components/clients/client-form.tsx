@@ -30,10 +30,19 @@ export default function ClientForm({ initialData, mode }: ClientFormProps) {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm<ClientFormData>({
+    } = useForm({
         resolver: zodResolver(clientSchema),
         defaultValues: initialData || {
+            name: '',
+            email: '',
+            phone: '',
+            company: '',
+            address: '',
+            city: '',
+            state: '',
+            zipCode: '',
             country: 'US',
+            notes: '',
         },
     })
 

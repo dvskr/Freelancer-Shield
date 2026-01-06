@@ -11,15 +11,8 @@ export function getStripe(): Promise<Stripe | null> {
     return stripePromise
 }
 
-// Redirect to Stripe Checkout
-export async function redirectToCheckout(sessionId: string) {
-    const stripe = await getStripe()
-    if (!stripe) {
-        throw new Error('Stripe not loaded')
-    }
-
-    const { error } = await stripe.redirectToCheckout({ sessionId })
-    if (error) {
-        throw error
-    }
+// Redirect to Stripe Checkout session URL
+export function redirectToCheckout(sessionUrl: string) {
+    window.location.href = sessionUrl
 }
+

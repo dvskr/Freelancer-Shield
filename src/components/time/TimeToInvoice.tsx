@@ -9,7 +9,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 interface TimeEntry {
     id: string
     description: string
-    date: string
+    date: Date | string
     duration: number
     hourlyRate: number | null
     client: { id: string; name: string } | null

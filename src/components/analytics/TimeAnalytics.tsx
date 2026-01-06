@@ -13,13 +13,25 @@ interface TimeData {
 export default function TimeAnalytics() {
     const [data, setData] = useState<TimeData | null>(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => { fetchData() }, [])
-    const fetchData = async () => { try { setData(await (await fetch('/api/analytics/time')).json()) } catch (e) { } finally { setLoading(false) } }
+    const fetchData = async () => {
+        try {
+            const res = await fetch('/api/analytics/time')
+            if (!res.ok) throw new Error('Failed to load time analytics')
+            setData(await res.json())
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to load data')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const formatHours = (minutes: number) => { const hours = Math.floor(minutes / 60); const mins = minutes % 60; return hours > 0 ? `${hours}h ${mins}m` : `${mins}m` }
 
     if (loading) return <div className="bg-white rounded-xl border border-gray-200 p-12 flex items-center justify-center"><Loader2 className="w-8 h-8 text-gray-400 animate-spin" /></div>
+    if (error) return <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-red-500">{error}</div>
     if (!data) return null
 
     const maxDailyMinutes = Math.max(...data.dailyData.map(d => d.billable + d.nonBillable), 60)

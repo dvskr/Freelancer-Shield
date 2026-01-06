@@ -14,32 +14,43 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
     )
 }
 
-export default function NotificationSettings() {
-    const [loading, setLoading] = useState(true)
+interface NotificationSettingsProps {
+    initialSettings: NSettings
+}
+
+export default function NotificationSettings({ initialSettings }: NotificationSettingsProps) {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
-    const [settings, setSettings] = useState<NSettings>(DEFAULT_NOTIFICATION_SETTINGS)
-
-    useEffect(() => { fetch('/api/settings/notifications').then(r => r.json()).then(setSettings).finally(() => setLoading(false)) }, [])
+    const [error, setError] = useState<string | null>(null)
+    const [settings, setSettings] = useState<NSettings>(initialSettings)
 
     const saveSettings = async (newSettings: NSettings) => {
         setSaving(true)
+        setError(null)
         try {
-            await fetch('/api/settings/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newSettings) })
-            setSaved(true); setTimeout(() => setSaved(false), 2000)
-        } catch { } finally { setSaving(false) }
+            const res = await fetch('/api/settings/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newSettings) })
+            if (!res.ok) throw new Error('Failed to save settings')
+            setSaved(true)
+            setTimeout(() => setSaved(false), 2000)
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to save')
+        } finally {
+            setSaving(false)
+        }
     }
 
     const updateEmail = (key: keyof NSettings['email'], value: boolean) => { const newSettings = { ...settings, email: { ...settings.email, [key]: value } }; setSettings(newSettings); saveSettings(newSettings) }
     const updatePush = (key: keyof NSettings['push'], value: boolean) => { const newSettings = { ...settings, push: { ...settings.push, [key]: value } }; setSettings(newSettings); saveSettings(newSettings) }
     const updateReminders = (key: keyof NSettings['reminders'], value: boolean) => { const newSettings = { ...settings, reminders: { ...settings.reminders, [key]: value } }; setSettings(newSettings); saveSettings(newSettings) }
 
-    if (loading) return <div className="bg-white rounded-xl border border-gray-200 p-12 flex items-center justify-center"><Loader2 className="w-6 h-6 text-gray-400 animate-spin" /></div>
+    // Loading state handled by parent/suspense
+
 
     return (
         <div className="space-y-6">
             {(saving || saved) && (<div className={`p-3 rounded-lg flex items-center gap-2 ${saved ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}<span className="text-sm">{saving ? 'Saving...' : 'Saved'}</span></div>)}
+            {error && <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
 
             {/* Email */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">

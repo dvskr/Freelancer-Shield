@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { stripe } from '@/lib/stripe/server'
+import { rateLimit } from '@/lib/security/rate-limit'
+import logger from '@/lib/logger'
 
 // POST - Create Stripe Connect account and get onboarding link
 export async function POST(request: NextRequest) {
+    // Rate limit Stripe operations (20 per minute)
+    const rateLimitResult = await rateLimit(request, 'public')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ url: accountLink.url })
     } catch (error) {
-        console.error('Stripe Connect error:', error)
+        logger.error('Stripe Connect error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
@@ -129,7 +135,7 @@ export async function GET(request: NextRequest) {
             requirements: account.requirements,
         })
     } catch (error) {
-        console.error('Stripe status error:', error)
+        logger.error('Stripe status error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }

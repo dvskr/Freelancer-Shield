@@ -1,8 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { rateLimit } from '@/lib/security/rate-limit'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+    // Apply auth rate limiting (5 requests per minute)
+    const rateLimitResult = await rateLimit(request, 'auth')
+    if (rateLimitResult) {
+        return NextResponse.redirect(new URL('/login?error=rate_limited', request.url))
+    }
+
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
     const origin = requestUrl.origin

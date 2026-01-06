@@ -9,9 +9,9 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 interface TimeEntry {
     id: string
     description: string
-    date: string
-    startTime: string | null
-    endTime: string | null
+    date: Date | string
+    startTime: Date | string | null
+    endTime: Date | string | null
     duration: number
     billable: boolean
     billed: boolean

@@ -8,7 +8,7 @@ import { getWeekDates, formatDuration, isSameDay } from '@/lib/time/utils'
 interface TimeEntry {
     id: string
     description: string
-    date: string
+    date: Date | string
     duration: number
     project: { id: string; name: string } | null
 }

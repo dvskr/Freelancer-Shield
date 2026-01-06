@@ -14,11 +14,23 @@ interface InvoiceData {
 export default function InvoiceAnalytics() {
     const [data, setData] = useState<InvoiceData | null>(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => { fetchData() }, [])
-    const fetchData = async () => { try { setData(await (await fetch('/api/analytics/invoices')).json()) } catch (e) { } finally { setLoading(false) } }
+    const fetchData = async () => {
+        try {
+            const res = await fetch('/api/analytics/invoices')
+            if (!res.ok) throw new Error('Failed to load invoice analytics')
+            setData(await res.json())
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to load data')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     if (loading) return <div className="bg-white rounded-xl border border-gray-200 p-12 flex items-center justify-center"><Loader2 className="w-8 h-8 text-gray-400 animate-spin" /></div>
+    if (error) return <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-red-500">{error}</div>
     if (!data) return null
 
     const statusColors: Record<string, string> = { draft: 'bg-gray-100 text-gray-700', sent: 'bg-blue-100 text-blue-700', paid: 'bg-green-100 text-green-700', overdue: 'bg-red-100 text-red-700', cancelled: 'bg-gray-100 text-gray-500' }

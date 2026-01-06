@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { mergeWithDefaults, ReminderSettings } from '@/lib/reminders/types'
+import { reminderSettingsSchema } from '@/lib/validations/settings'
 
 // GET - Get reminder settings
 export async function GET(request: NextRequest) {
@@ -42,10 +43,14 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json()
+        const validation = reminderSettingsSchema.safeParse(body)
+        if (!validation.success) {
+            return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 })
+        }
 
         await prisma.user.update({
             where: { supabaseId: user.id },
-            data: { reminderSettings: body },
+            data: { reminderSettings: validation.data },
         })
 
         return NextResponse.json({ success: true })

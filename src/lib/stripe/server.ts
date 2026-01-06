@@ -5,7 +5,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2023-10-16',
+    apiVersion: '2025-12-15.clover',
     typescript: true,
 })
 
@@ -39,6 +39,7 @@ export async function createPaymentIntent(
 export async function createInvoiceCheckoutSession({
     invoiceId,
     amount,
+    currency = 'usd',
     customerEmail,
     invoiceNumber,
     description,
@@ -48,6 +49,7 @@ export async function createInvoiceCheckoutSession({
 }: {
     invoiceId: string
     amount: number
+    currency?: string
     customerEmail: string
     invoiceNumber: string
     description: string
@@ -61,7 +63,7 @@ export async function createInvoiceCheckoutSession({
         line_items: [
             {
                 price_data: {
-                    currency: 'usd',
+                    currency: currency.toLowerCase(),
                     product_data: {
                         name: `Invoice ${invoiceNumber}`,
                         description,
@@ -91,11 +93,13 @@ export async function createInvoiceCheckoutSession({
 export async function createPaymentLink({
     invoiceId,
     amount,
+    currency = 'usd',
     invoiceNumber,
     description,
 }: {
     invoiceId: string
     amount: number
+    currency?: string
     invoiceNumber: string
     description: string
 }) {
@@ -112,7 +116,7 @@ export async function createPaymentLink({
     const price = await stripe.prices.create({
         product: product.id,
         unit_amount: formatAmountForStripe(amount),
-        currency: 'usd',
+        currency: currency.toLowerCase(),
     })
 
     // Finally create the payment link

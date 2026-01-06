@@ -33,7 +33,7 @@ export async function sendEmail(options: SendEmailOptions) {
             subject: options.subject,
             html: options.html,
             text: options.text,
-            reply_to: options.replyTo || emailConfig.replyTo,
+            replyTo: options.replyTo || emailConfig.replyTo,
             tags: options.tags,
         })
 

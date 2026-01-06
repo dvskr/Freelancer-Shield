@@ -3,9 +3,16 @@ import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { clientSchema } from '@/lib/validations/client'
 import { ZodError } from 'zod'
+import { rateLimit } from '@/lib/security/rate-limit'
+import { sanitizeText } from '@/lib/security/sanitize'
+import logger from '@/lib/logger'
 
 // GET - List all clients for the current user
 export async function GET(request: NextRequest) {
+    // Standard rate limiting
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -22,9 +29,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
         }
 
-        // Get search query from URL
+        // Get search query from URL and sanitize
         const searchParams = request.nextUrl.searchParams
-        const search = searchParams.get('q') || ''
+        const search = sanitizeText(searchParams.get('q') || '')
 
         const clients = await prisma.client.findMany({
             where: {
@@ -50,13 +57,17 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(clients)
     } catch (error) {
-        console.error('Clients GET error:', error)
+        logger.error('Clients GET error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
 
 // POST - Create a new client
 export async function POST(request: NextRequest) {
+    // Standard rate limiting
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -78,6 +89,10 @@ export async function POST(request: NextRequest) {
         // Validate input
         const validated = clientSchema.parse(body)
 
+        // Sanitize text fields
+        const sanitizedName = sanitizeText(validated.name)
+        const sanitizedNotes = validated.notes ? sanitizeText(validated.notes) : null
+
         // Check for duplicate email for this user
         const existingClient = await prisma.client.findFirst({
             where: {
@@ -93,26 +108,26 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Create the client
+        // Create the client with sanitized data
         const client = await prisma.client.create({
             data: {
                 userId: profile.id,
-                name: validated.name,
+                name: sanitizedName,
                 email: validated.email,
                 phone: validated.phone || null,
-                company: validated.company || null,
+                company: validated.company ? sanitizeText(validated.company) : null,
                 address: validated.address || null,
                 city: validated.city || null,
                 state: validated.state || null,
                 zipCode: validated.zipCode || null,
                 country: validated.country,
-                notes: validated.notes || null,
+                notes: sanitizedNotes,
             },
         })
 
         return NextResponse.json(client, { status: 201 })
     } catch (error) {
-        console.error('Clients POST error:', error)
+        logger.error('Clients POST error:', error)
 
         if (error instanceof ZodError) {
             return NextResponse.json(

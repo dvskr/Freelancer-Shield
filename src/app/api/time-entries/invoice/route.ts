@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
                             description: item.description,
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
-                            total: Math.round(item.quantity * item.unitPrice),
+                            amount: Math.round(item.quantity * item.unitPrice),
                         })),
                     },
                 },

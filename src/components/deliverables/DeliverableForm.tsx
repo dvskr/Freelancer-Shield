@@ -78,18 +78,31 @@ export default function DeliverableForm({ projectId, milestoneId }: DeliverableF
 
             // Upload file if selected
             if (selectedFile) {
-                // In a real app, you'd upload to S3/Supabase Storage
-                // For now, we'll create a mock URL
-                // TODO: Implement actual file upload
-                fileUrl = URL.createObjectURL(selectedFile) // Temporary - replace with actual upload
+                // Upload to Supabase Storage via API
+                const formData = new FormData()
+                formData.append('file', selectedFile)
+                formData.append('folder', 'deliverables')
+
+                setUploadProgress(10)
+
+                const uploadRes = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                })
+
+                setUploadProgress(60)
+
+                if (!uploadRes.ok) {
+                    const uploadError = await uploadRes.json()
+                    throw new Error(uploadError.error || 'Failed to upload file')
+                }
+
+                const uploadData = await uploadRes.json()
+                fileUrl = uploadData.url
                 fileType = selectedFile.type
                 fileSize = selectedFile.size
 
-                // Simulate upload progress
-                for (let i = 0; i <= 100; i += 10) {
-                    setUploadProgress(i)
-                    await new Promise(r => setTimeout(r, 100))
-                }
+                setUploadProgress(100)
             }
 
             const res = await fetch(

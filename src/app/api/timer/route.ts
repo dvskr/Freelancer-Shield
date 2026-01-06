@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { timerStartSchema, timerStopSchema } from '@/lib/validations/time-entry'
+import { rateLimit } from '@/lib/security/rate-limit'
+import { sanitizeText } from '@/lib/security/sanitize'
+import logger from '@/lib/logger'
 
 // GET - Get current running timer
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -34,7 +40,7 @@ export async function GET() {
 
         return NextResponse.json(runningTimer)
     } catch (error) {
-        console.error('Timer GET error:', error)
+        logger.error('Timer GET error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
@@ -108,7 +114,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(timer, { status: 201 })
     } catch (error) {
-        console.error('Timer POST error:', error)
+        logger.error('Timer POST error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
@@ -176,7 +182,7 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json(timer)
     } catch (error) {
-        console.error('Timer PATCH error:', error)
+        logger.error('Timer PATCH error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
@@ -216,7 +222,7 @@ export async function DELETE() {
 
         return NextResponse.json({ success: true })
     } catch (error) {
-        console.error('Timer DELETE error:', error)
+        logger.error('Timer DELETE error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }

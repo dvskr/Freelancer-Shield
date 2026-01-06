@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
+    // Verify cron secret - FAIL CLOSED
+    const cronSecret = process.env.CRON_SECRET
+
+    if (!cronSecret) {
+        console.error('CRON_SECRET environment variable is not set')
+        return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+    }
+
     const authHeader = request.headers.get('authorization')
-    if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (authHeader !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

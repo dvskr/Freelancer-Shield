@@ -26,7 +26,7 @@ export async function scheduleRemindersForInvoice(invoiceId: string) {
         return
     }
 
-    const settings = mergeWithDefaults(invoice.user.reminderSettings as ReminderSettings)
+    const settings = mergeWithDefaults(invoice.user.reminderSettings as Partial<ReminderSettings> | null)
 
     if (!settings.enabled) {
         return

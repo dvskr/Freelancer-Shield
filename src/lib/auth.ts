@@ -21,6 +21,7 @@ export interface UserProfile {
     defaultPaymentTerms: number
     subscriptionStatus: string
     trialEndsAt: Date | null
+    notificationSettings?: any
 }
 
 /**

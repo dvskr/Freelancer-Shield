@@ -12,8 +12,8 @@ export const invoiceSchema = z.object({
     projectId: z.string().optional().nullable(),
     dueDate: z.string().min(1, 'Due date is required'),
     notes: z.string().optional(),
-    taxRate: z.number().min(0).max(100).default(0),
-    discountAmount: z.number().min(0).default(0),
+    taxRate: z.number().min(0).max(100),
+    discountAmount: z.number().min(0),
     items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
 })
 

@@ -3,6 +3,10 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe/server'
 import prisma from '@/lib/prisma'
+import { sendEmail } from '@/lib/email/resend'
+import { paymentReceivedTemplate } from '@/lib/email/templates/invoice'
+import { paymentFailedTemplate, freelancerPaymentReceivedTemplate } from '@/lib/email/templates/payment'
+import logger from '@/lib/logger'
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -20,7 +24,7 @@ export async function POST(request: NextRequest) {
     try {
         event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     } catch (err) {
-        console.error('Webhook signature verification failed:', err)
+        logger.error('Webhook signature verification failed:', err)
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
@@ -43,12 +47,12 @@ export async function POST(request: NextRequest) {
                 break
 
             default:
-                console.log(`Unhandled event type: ${event.type}`)
+                logger.debug(`Unhandled event type: ${event.type}`)
         }
 
         return NextResponse.json({ received: true })
     } catch (error) {
-        console.error('Webhook handler error:', error)
+        logger.error('Webhook handler error:', error)
         return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
     }
 }
@@ -57,16 +61,27 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const invoiceId = session.metadata?.invoiceId
 
     if (!invoiceId) {
-        console.error('No invoiceId in session metadata')
+        logger.error('No invoiceId in session metadata')
         return
     }
 
     const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId },
+        include: {
+            client: true,
+            user: {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    businessName: true,
+                    email: true,
+                },
+            },
+        },
     })
 
     if (!invoice) {
-        console.error('Invoice not found:', invoiceId)
+        logger.error('Invoice not found:', invoiceId)
         return
     }
 
@@ -95,9 +110,40 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         }),
     ])
 
-    console.log(`Payment recorded for invoice ${invoice.invoiceNumber}`)
+    // Get freelancer display name
+    const freelancerName = invoice.user.businessName ||
+        `${invoice.user.firstName || ''} ${invoice.user.lastName || ''}`.trim() ||
+        'Your Freelancer'
 
-    // TODO: Send payment confirmation email
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const receiptLink = `${baseUrl}/portal/invoices/${invoice.id}`
+
+    // Send payment confirmation email to CLIENT
+    await sendEmail({
+        to: invoice.client.email,
+        subject: `Payment Received - Invoice ${invoice.invoiceNumber}`,
+        html: paymentReceivedTemplate({
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.client.name,
+            freelancerName,
+            amount: amountPaid,
+            paidAt: new Date(),
+            receiptLink,
+        }),
+    })
+
+    // Send notification email to FREELANCER
+    await sendEmail({
+        to: invoice.user.email,
+        subject: `💰 Payment Received: ${invoice.invoiceNumber} from ${invoice.client.name}`,
+        html: freelancerPaymentReceivedTemplate({
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.client.name,
+            amount: amountPaid,
+            paidAt: new Date(),
+            invoiceLink: `${baseUrl}/invoices/${invoice.id}`,
+        }),
+    })
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
@@ -156,6 +202,25 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
 
     if (!invoiceId) return
 
+    const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+            client: true,
+            user: {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    businessName: true,
+                },
+            },
+        },
+    })
+
+    if (!invoice) {
+        console.error('Invoice not found for failed payment:', invoiceId)
+        return
+    }
+
     // Log failed payment attempt
     await prisma.payment.create({
         data: {
@@ -168,9 +233,27 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
         },
     })
 
-    console.log(`Payment failed for invoice ${invoiceId}`)
+    // Get freelancer display name
+    const freelancerName = invoice.user.businessName ||
+        `${invoice.user.firstName || ''} ${invoice.user.lastName || ''}`.trim() ||
+        'Your Freelancer'
 
-    // TODO: Send payment failed notification
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const retryLink = `${baseUrl}/pay/${invoice.id}`
+
+    // Send payment failed notification
+    await sendEmail({
+        to: invoice.client.email,
+        subject: `Payment Failed - Invoice ${invoice.invoiceNumber}`,
+        html: paymentFailedTemplate({
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.client.name,
+            freelancerName,
+            amount: invoice.total - invoice.amountPaid,
+            reason: paymentIntent.last_payment_error?.message,
+            retryLink,
+        }),
+    })
 }
 
 async function handleChargeRefunded(charge: Stripe.Charge) {

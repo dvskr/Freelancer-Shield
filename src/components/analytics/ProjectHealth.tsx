@@ -19,10 +19,21 @@ interface ProjectData {
 export default function ProjectHealth() {
     const [data, setData] = useState<ProjectData | null>(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [filter, setFilter] = useState<'all' | 'active' | 'at_risk'>('active')
 
     useEffect(() => { fetchData() }, [])
-    const fetchData = async () => { try { const res = await fetch('/api/analytics/projects'); setData(await res.json()) } catch (e) { } finally { setLoading(false) } }
+    const fetchData = async () => {
+        try {
+            const res = await fetch('/api/analytics/projects')
+            if (!res.ok) throw new Error('Failed to load projects')
+            setData(await res.json())
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to load data')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const getHealthColor = (health: string) => {
         switch (health) { case 'on_track': return 'bg-green-100 text-green-700'; case 'at_risk': return 'bg-yellow-100 text-yellow-700'; case 'behind': return 'bg-orange-100 text-orange-700'; case 'critical': return 'bg-red-100 text-red-700'; default: return 'bg-gray-100 text-gray-700' }
@@ -32,6 +43,7 @@ export default function ProjectHealth() {
     }
 
     if (loading) return <div className="bg-white rounded-xl border border-gray-200 p-12 flex items-center justify-center"><Loader2 className="w-8 h-8 text-gray-400 animate-spin" /></div>
+    if (error) return <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-red-500">{error}</div>
     if (!data) return null
 
     const filteredProjects = data.projects.filter(p => {

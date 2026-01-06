@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { DEFAULT_NOTIFICATION_SETTINGS } from '@/lib/types/settings'
+import { notificationSettingsSchema } from '@/lib/validations/settings'
 
 export async function GET(request: NextRequest) {
     try {
@@ -30,8 +31,13 @@ export async function PATCH(request: NextRequest) {
         if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
         const body = await request.json()
+        const validation = notificationSettingsSchema.safeParse(body)
+        if (!validation.success) {
+            return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 })
+        }
+
         const currentSettings = (profile.notificationSettings as object) || {}
-        const newSettings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...currentSettings, ...body }
+        const newSettings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...currentSettings, ...validation.data }
 
         await prisma.user.update({ where: { id: profile.id }, data: { notificationSettings: newSettings } })
         return NextResponse.json(newSettings)
@@ -40,3 +46,4 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
+

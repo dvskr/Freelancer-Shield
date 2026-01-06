@@ -12,15 +12,27 @@ interface Activity {
 export default function ActivityFeed() {
     const [activities, setActivities] = useState<Activity[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => { fetchActivities() }, [])
-    const fetchActivities = async () => { try { setActivities(await (await fetch('/api/activity?limit=15')).json()) } catch (e) { } finally { setLoading(false) } }
+    const fetchActivities = async () => {
+        try {
+            const res = await fetch('/api/activity?limit=15')
+            if (!res.ok) throw new Error('Failed to load activities')
+            setActivities(await res.json())
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to load activities')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const getIcon = (type: string) => { switch (type) { case 'invoice': return FileText; case 'payment': return DollarSign; case 'project': return FolderKanban; case 'milestone': return CheckSquare; case 'client': return UserPlus; default: return Clock } }
     const getIconColor = (type: string, action: string) => { if (type === 'payment' || action === 'paid' || action === 'approved') return 'bg-green-100 text-green-600'; if (action === 'pending') return 'bg-purple-100 text-purple-600'; switch (type) { case 'invoice': return 'bg-blue-100 text-blue-600'; case 'project': return 'bg-orange-100 text-orange-600'; case 'client': return 'bg-purple-100 text-purple-600'; default: return 'bg-gray-100 text-gray-600' } }
     const formatTime = (timestamp: string) => { const diff = Date.now() - new Date(timestamp).getTime(); const minutes = Math.floor(diff / 60000); const hours = Math.floor(minutes / 60); const days = Math.floor(hours / 24); if (minutes < 1) return 'Just now'; if (minutes < 60) return `${minutes}m ago`; if (hours < 24) return `${hours}h ago`; if (days < 7) return `${days}d ago`; return new Date(timestamp).toLocaleDateString() }
 
     if (loading) return <div className="bg-white rounded-xl border border-gray-200 p-8 flex items-center justify-center"><Loader2 className="w-6 h-6 text-gray-400 animate-spin" /></div>
+    if (error) return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-red-500">{error}</div>
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

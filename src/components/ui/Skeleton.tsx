@@ -1,12 +1,14 @@
 import { cn } from '@/lib/utils'
+import { CSSProperties } from 'react'
 
 interface SkeletonProps {
     className?: string
+    style?: CSSProperties
 }
 
-export function Skeleton({ className }: SkeletonProps) {
+export function Skeleton({ className, style }: SkeletonProps) {
     return (
-        <div className={cn('animate-pulse rounded-md bg-gray-200', className)} />
+        <div className={cn('animate-pulse rounded-md bg-gray-200', className)} style={style} />
     )
 }
 
@@ -72,12 +74,13 @@ export function SkeletonKPICards() {
 }
 
 export function SkeletonChart() {
+    const heights = [45, 65, 35, 80, 55, 70, 40, 60, 75, 50, 85, 30] // Fixed heights for SSR
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
             <Skeleton className="h-5 w-40 mb-6" />
             <div className="h-64 flex items-end gap-2">
-                {Array.from({ length: 12 }).map((_, i) => (
-                    <Skeleton key={i} className="flex-1" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                {heights.map((height, i) => (
+                    <Skeleton key={i} className="flex-1" style={{ height: `${height}%` }} />
                 ))}
             </div>
         </div>

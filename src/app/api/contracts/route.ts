@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
+import { contractSchema } from '@/lib/validations/contracts'
+import { rateLimit } from '@/lib/security/rate-limit'
+import { sanitizeText } from '@/lib/security/sanitize'
+import logger from '@/lib/logger'
 
 function generateContractCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -11,7 +15,10 @@ function generateContractCode(): string {
     return code
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -31,12 +38,15 @@ export async function GET() {
 
         return NextResponse.json(contracts)
     } catch (error) {
-        console.error('Contracts GET error:', error)
+        logger.error('Contracts GET error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
 
 export async function POST(request: NextRequest) {
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -46,11 +56,12 @@ export async function POST(request: NextRequest) {
         if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
         const body = await request.json()
-        const { clientId, projectId, name, content } = body
-
-        if (!clientId || !name || !content) {
-            return NextResponse.json({ error: 'Client, name, and content are required' }, { status: 400 })
+        const validation = contractSchema.safeParse(body)
+        if (!validation.success) {
+            return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 })
         }
+
+        const { clientId, projectId, title, content } = validation.data
 
         const client = await prisma.client.findUnique({
             where: { id: clientId, userId: profile.id }
@@ -71,21 +82,25 @@ export async function POST(request: NextRequest) {
             code = generateContractCode()
         }
 
+        // Sanitize text fields
+        const sanitizedTitle = sanitizeText(title)
+        const sanitizedContent = sanitizeText(content)
+
         const contract = await prisma.contract.create({
             data: {
                 userId: profile.id,
                 clientId,
                 projectId: projectId || null,
                 code,
-                name,
-                content,
+                name: sanitizedTitle,
+                content: sanitizedContent,
                 status: 'draft'
             },
         })
 
         return NextResponse.json(contract, { status: 201 })
     } catch (error) {
-        console.error('Contracts POST error:', error)
+        logger.error('Contracts POST error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }

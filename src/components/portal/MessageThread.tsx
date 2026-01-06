@@ -7,7 +7,7 @@ interface Message {
     id: string
     content: string
     senderType: string
-    createdAt: string
+    createdAt: Date | string
 }
 
 interface MessageThreadProps {
@@ -95,8 +95,8 @@ export default function MessageThread({
                                     </div>
                                     <div>
                                         <div className={`px-4 py-2 rounded-2xl ${isClient
-                                                ? 'bg-blue-600 text-white rounded-br-md'
-                                                : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                                            ? 'bg-blue-600 text-white rounded-br-md'
+                                            : 'bg-gray-100 text-gray-900 rounded-bl-md'
                                             }`}>
                                             <p>{message.content}</p>
                                         </div>

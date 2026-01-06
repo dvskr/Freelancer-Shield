@@ -45,8 +45,9 @@ export default async function PortalProjectPage({ params }: PortalProjectPagePro
                 },
                 orderBy: { orderIndex: 'asc' },
             },
-            contract: {
+            contracts: {
                 select: { id: true, name: true },
+                take: 1,
             },
         },
     })
@@ -114,8 +115,8 @@ export default async function PortalProjectPage({ params }: PortalProjectPagePro
                         )}
                     </div>
                     <span className={`px-3 py-1 text-sm font-medium rounded-full ${project.status === 'active' ? 'bg-green-100 text-green-700' :
-                            project.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-700'
+                        project.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-700'
                         }`}>
                         {project.status}
                     </span>
@@ -217,13 +218,13 @@ export default async function PortalProjectPage({ params }: PortalProjectPagePro
             </div>
 
             {/* Contract Link */}
-            {project.contract && (
+            {project.contracts[0] && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-blue-600" />
                         <div>
                             <p className="text-sm text-blue-700">
-                                This project is covered by contract: <strong>{project.contract.name}</strong>
+                                This project is covered by contract: <strong>{project.contracts[0].name}</strong>
                             </p>
                         </div>
                     </div>

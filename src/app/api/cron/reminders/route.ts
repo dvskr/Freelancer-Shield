@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processScheduledReminders } from '@/lib/reminders/scheduler'
 
 // This endpoint should be called by a cron job service (e.g., Vercel Cron, Railway, etc.)
-// Add authorization to prevent unauthorized access
 
 export async function GET(request: NextRequest) {
-    // Verify cron secret
-    const authHeader = request.headers.get('authorization')
+    // Verify cron secret - FAIL CLOSED: reject if no secret configured
     const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+        console.error('CRON_SECRET environment variable is not set')
+        return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+    }
+
+    const authHeader = request.headers.get('authorization')
+    if (authHeader !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

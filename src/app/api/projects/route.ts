@@ -3,8 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { projectSchema } from '@/lib/validations/project'
 import { generateProjectCode } from '@/lib/utils'
+import { rateLimit } from '@/lib/security/rate-limit'
+import { sanitizeText } from '@/lib/security/sanitize'
+import logger from '@/lib/logger'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -24,12 +30,15 @@ export async function GET() {
 
         return NextResponse.json(projects)
     } catch (error) {
-        console.error('Projects GET error:', error)
+        logger.error('Projects GET error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
 
 export async function POST(request: NextRequest) {
+    const rateLimitResult = await rateLimit(request, 'standard')
+    if (rateLimitResult) return rateLimitResult
+
     try {
         const supabase = await createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -52,13 +61,17 @@ export async function POST(request: NextRequest) {
             code = generateProjectCode()
         }
 
+        // Sanitize text fields
+        const sanitizedName = sanitizeText(validated.name)
+        const sanitizedDescription = validated.description ? sanitizeText(validated.description) : null
+
         const project = await prisma.project.create({
             data: {
                 userId: profile.id,
                 clientId: validated.clientId,
                 code,
-                name: validated.name,
-                description: validated.description || null,
+                name: sanitizedName,
+                description: sanitizedDescription,
                 projectType: validated.projectType,
                 totalAmount: validated.totalAmount,
                 currency: validated.currency,
@@ -72,7 +85,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(project, { status: 201 })
     } catch (error) {
-        console.error('Projects POST error:', error)
+        logger.error('Projects POST error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
